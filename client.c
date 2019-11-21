@@ -32,7 +32,7 @@ void *clientThread(void *args)
     serverLen = sizeof(serverSockAddr);
 
     //send data
-    sendto(clientSock,(const char *)hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr*) &serverSockAddr, serverLen);
+    sendto(clientSock,(const char *)hello, strlen(hello), 0, (const struct sockaddr*) &serverSockAddr, serverLen);
     printf("message sent to server\n");
 
 
