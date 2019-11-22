@@ -10,7 +10,8 @@
 #include <sys/un.h>
 #include <pthread.h>
 
-#define SOCK_PATH "/tmp/udp_server"
+#define SERVER_PATH "/tmp/udp_server.server"
+#define CLIENT_PATH "/tmp/udp_server.client"
 
 void *serverThread(void *args)
 {
@@ -21,7 +22,7 @@ void *serverThread(void *args)
     char *hello = "Hello from server"; 
     struct sockaddr_un serverSockAddr, clientSockAddr;
 
-    //Create socket file descriptor
+    //Create socket file descriptor for UNIX IPC
     serverSock = socket(AF_UNIX, SOCK_DGRAM,0);
     if(serverSock == 1)
     {
@@ -29,14 +30,17 @@ void *serverThread(void *args)
         return NULL;
     }
 
+    memset(&serverSockAddr,0,sizeof(serverSockAddr));
+    memset(&clientSockAddr,0,sizeof(clientSockAddr));
+
     //Filling server info
     serverSockAddr.sun_family = AF_UNIX;
-    strcpy(serverSockAddr.sun_path,SOCK_PATH);
+    strcpy(serverSockAddr.sun_path,SERVER_PATH);
     serverLen = sizeof(serverSockAddr);
     clientLen = sizeof(clientSockAddr);
 
     //unbind before binding again
-    unlink(SOCK_PATH);
+    unlink(SERVER_PATH);
     rc = bind(serverSock, (struct sockaddr *) &serverSockAddr, serverLen);
     if(rc == -1)
     {
@@ -45,28 +49,25 @@ void *serverThread(void *args)
         return NULL;
     }
 
-    for(;;)
-    {
-        bzero(readBuffer,sizeof(readBuffer));
-        printf("waiting for data?\n");
+    bzero(readBuffer,sizeof(readBuffer));
+    printf("waiting for data...\n");
 
-        byterec = recvfrom(serverSock, readBuffer, sizeof(readBuffer), MSG_WAITALL, ( struct sockaddr * ) &clientSockAddr, &clientLen);
-        if(byterec == -1)
-        {
-            printf("error receiving\n");
-            return NULL;
-        }
-        readBuffer[byterec] = '\0';
-        printf("Client :  %s \n", readBuffer);
-        rc = sendto(serverSock, (const char *)hello, strlen(hello), MSG_CONFIRM, (const struct sockaddr *) &clientSockAddr, clientLen);
-        if(rc == -1)
-        {
-            printf("error sending\n");
-            return NULL;
-        }
-        printf("message sent\n");
+    byterec = recvfrom(serverSock, readBuffer, sizeof(readBuffer), MSG_WAITALL, ( struct sockaddr * ) &clientSockAddr, &clientLen);
+    if(byterec == -1)
+    {
+        printf("error receiving\n");
+        return NULL;
     }
-    
+    readBuffer[byterec] = '\0';
+    printf("Client :  %s \n", readBuffer);
+    rc = sendto(serverSock, (const char *)hello, strlen(hello), 0, (const struct sockaddr *) &clientSockAddr, clientLen);
+    if(rc == -1)
+    {
+        printf("error sending\n");
+        return NULL;
+    }
+    printf("message sent\n");
+
 
     return NULL;
 }
@@ -78,6 +79,7 @@ int main()
     pthread_create(&serverT,NULL,serverThread,NULL);
     //sleep(5);
     pthread_join(serverT,NULL);
+    printf("Thread done\n");
     return 0;
     //can receive data now
 
